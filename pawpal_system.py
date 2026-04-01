@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 
 PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
@@ -8,8 +9,9 @@ class Task:
     name: str
     duration: int       # minutes
     priority: str       # "high", "medium", "low"
-    frequency: str      # "daily", "weekly", "as needed"
+    frequency: str      # "daily", "weekly", "once"
     time: str = ""      # scheduled start time in "HH:MM" format, e.g. "08:00"
+    due_date: str = ""  # "YYYY-MM-DD" format
     completed: bool = False
 
     def mark_complete(self):
@@ -19,6 +21,21 @@ class Task:
     def reset(self):
         """Reset this task to incomplete."""
         self.completed = False
+
+    def next_occurrence(self) -> "Task | None":
+        """Return a new Task for the next recurrence, or None if the task is once-only."""
+        if self.frequency == "once":
+            return None
+        base = date.fromisoformat(self.due_date) if self.due_date else date.today()
+        delta = timedelta(days=1) if self.frequency == "daily" else timedelta(weeks=1)
+        return Task(
+            name=self.name,
+            duration=self.duration,
+            priority=self.priority,
+            frequency=self.frequency,
+            time=self.time,
+            due_date=(base + delta).isoformat(),
+        )
 
 
 @dataclass
@@ -79,6 +96,13 @@ class Scheduler:
                 plan.append(task)
                 time_remaining -= task.duration
         return plan
+
+    def handle_completion(self, pet: "Pet", task: Task):
+        """Mark a task complete and auto-schedule the next occurrence for recurring tasks."""
+        task.mark_complete()
+        next_task = task.next_occurrence()
+        if next_task:
+            pet.add_task(next_task)
 
     def sort_tasks_by_time(self) -> list[Task]:
         """Return all tasks sorted by scheduled time using a lambda key; unscheduled tasks go last."""

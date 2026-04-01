@@ -75,11 +75,13 @@ else:
         with col3:
             task_time = st.text_input("Scheduled time (HH:MM, optional)")
 
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             priority  = st.selectbox("Priority", ["high", "medium", "low"])
         with col2:
-            frequency = st.selectbox("Frequency", ["daily", "weekly", "as needed"])
+            frequency = st.selectbox("Frequency", ["daily", "weekly", "once"])
+        with col3:
+            due_date  = st.text_input("Due date (YYYY-MM-DD, optional)")
         add_task = st.form_submit_button("Add task")
 
     if add_task:
@@ -93,6 +95,7 @@ else:
                 priority=priority,
                 frequency=frequency,
                 time=task_time.strip(),
+                due_date=due_date.strip(),
             ))
 
     # ── Sort & filter controls ────────────────────────────────────────────────
@@ -129,12 +132,13 @@ else:
         if not tasks:
             st.info("No tasks match the current filter.")
         else:
-            pet_by_task = {id(task): pet.name for pet in st.session_state.pets for task in pet.tasks}
+            pet_by_task  = {id(task): pet for pet in st.session_state.pets for task in pet.tasks}
             rows = [
                 {
                     "Done":           t.completed,
-                    "Pet":            pet_by_task.get(id(t), "—"),
+                    "Pet":            pet_by_task[id(t)].name if id(t) in pet_by_task else "—",
                     "Task":           t.name,
+                    "Due date":       t.due_date or "—",
                     "Time":           t.time or "—",
                     "Duration (min)": t.duration,
                     "Priority":       t.priority,
@@ -146,7 +150,7 @@ else:
             edited = st.data_editor(
                 [{k: v for k, v in r.items() if k != "_task_ref"} for r in rows],
                 column_config={"Done": st.column_config.CheckboxColumn("Done")},
-                disabled=["Pet", "Task", "Time", "Duration (min)", "Priority", "Frequency"],
+                disabled=["Pet", "Task", "Due date", "Time", "Duration (min)", "Priority", "Frequency"],
                 hide_index=True,
                 use_container_width=True,
             )
@@ -154,8 +158,12 @@ else:
             changed = False
             for row, original in zip(edited, rows):
                 task = original["_task_ref"]
-                if row["Done"] != task.completed:
-                    task.mark_complete() if row["Done"] else task.reset()
+                if row["Done"] and not task.completed:
+                    pet = pet_by_task.get(id(task))
+                    _scheduler.handle_completion(pet, task)
+                    changed = True
+                elif not row["Done"] and task.completed:
+                    task.reset()
                     changed = True
             if changed:
                 st.rerun()
