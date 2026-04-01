@@ -88,10 +88,15 @@ This is reasonable because greedy scheduling is simple to understand and explain
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 - What kinds of prompts or questions were most helpful?
 
+I used AI for design brainstorming, code generation, and debugging. I haven't done much refactoring in this project.
+I find that the prompt asking for the assumptions in the implementation that AI gives were most helpful. It helps me understand the limitations of the generated code so I can actively decide if I want to improve those or accept it for this assignt during time constraints. I also like asking for tradeoffs in the design, which helps me understand the reasoning behind certain choices and whether they align with how I want my app to work.
+
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
 - How did you evaluate or verify what the AI suggested?
+
+When I first ask it to implement the UI, the UI only allows the user to add only 1 pet. I asked it for an implementation that supports multiple pets, and test it mostly through interacting with the UI.
 
 ---
 
@@ -128,10 +133,22 @@ Moderately confident for the happy path — the five tests cover the most critic
 
 - What part of this project are you most satisfied with?
 
+I'm very satisfied with how intuitive my UI is. Due to how `streamlit` render the UI component, the UX is not the best. But I think the UI design is simple and straightforward, and it clearly display all the logics I built for the app.
+
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
 
+Definitely the scheduling logic. I would make sure it check for overlaps instead of just exact time matches and doesn't show different tasks that are due on different days in the same plan. I would let the user choose which day to schedule for instead of just picking next available time. 
+
+I will also refactor my code and reorganize my folder structure. 
+
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+
+Maybe I started my conversation with "keep the logic simple, this is just a class project". The AI generated code is very simple and straightforward that misses a lot of edge cases. 
+
+It never hurts to ask the AI to list the assumptions it made for its implementation.
+
+Also when debugging the UI, sometimes it's just best to add the screenshot of the erronous UI instead of carefully describing the issue in words, which can lead to miscommunication and more back-and-forth.
