@@ -73,3 +73,16 @@ pip install -r requirements.txt
 - `Scheduler.get_summary()` refactored to delegate to `generate_plan()` so both are always in sync
 - Schedule output now prints the date and time of each task (`@ 2026-04-01 | 08:00`)
 - UI: conflict warnings are shown separately from "didn't fit" warnings, explaining which task won and which was omitted
+
+### "Testing PawPal+"
+**Command to run tests:**
+```bash
+python -m pytest tests/test_pawpal.py -v
+```
+
+`test_mark_complete_changes_status`: `Task.mark_complete()` flips completed from False to True
+`test_add_task_increases_pet_task_count`: `Pet.add_task() correctly appends to the pet's task list
+`test_sort_tasks_by_time_returns_chronological_order`: `Scheduler.sort_tasks_by_time()` returns tasks in earliest-to-latest order, with tasks that have no time set placed last
+`test_daily_task_creates_next_day_recurrence`: `Scheduler.handle_completion()` marks the task done and automatically creates a new task with a due date of today + 1 day
+`test_conflict_detection_flags_duplicate_times`: `Scheduler.get_conflicts()` correctly identifies two tasks sharing the same time slot and groups them under that slot key
+
