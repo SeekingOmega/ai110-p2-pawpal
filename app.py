@@ -67,15 +67,19 @@ else:
         pet_names  = [p.name for p in st.session_state.pets]
         target_pet = st.selectbox("Assign to pet", pet_names)
 
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3 = st.columns(3)
         with col1:
             task_name = st.text_input("Task name")
         with col2:
-            duration = st.number_input("Duration (min)", min_value=1, max_value=240, value=20)
+            duration  = st.number_input("Duration (min)", min_value=1, max_value=240, value=20)
         with col3:
-            priority = st.selectbox("Priority", ["high", "medium", "low"])
-        with col4:
-            frequency = st.selectbox("Frequency", ["daily", "weekly", "as_needed"])
+            task_time = st.text_input("Scheduled time (HH:MM, optional)")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            priority  = st.selectbox("Priority", ["high", "medium", "low"])
+        with col2:
+            frequency = st.selectbox("Frequency", ["daily", "weekly", "as needed"])
         add_task = st.form_submit_button("Add task")
 
     if add_task:
@@ -88,20 +92,57 @@ else:
                 duration=int(duration),
                 priority=priority,
                 frequency=frequency,
+                time=task_time.strip(),
             ))
 
-    # Show tasks grouped by pet
-    for pet in st.session_state.pets:
-        if pet.tasks:
-            st.markdown(f"**{pet.name}**")
-            st.table([
-                {"Task": t.name, "Duration (min)": t.duration, "Priority": t.priority, "Frequency": t.frequency}
-                for t in pet.tasks
-            ])
-
+    # ── Sort & filter controls ────────────────────────────────────────────────
     total_tasks = sum(len(p.tasks) for p in st.session_state.pets)
+
     if total_tasks == 0:
         st.info("No tasks yet. Add one above.")
+    else:
+        st.markdown("#### View Tasks")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            sort_by = st.selectbox("Sort by", ["Default (by pet)", "Scheduled time"])
+        with col2:
+            filter_status = st.selectbox("Filter by status", ["All", "Pending", "Completed"])
+        with col3:
+            pet_filter_options = ["All pets"] + [p.name for p in st.session_state.pets]
+            filter_pet = st.selectbox("Filter by pet", pet_filter_options)
+
+        # Build a temporary owner + scheduler just for sorting/filtering
+        _owner = Owner(name=owner_name, available_time=int(available_time))
+        for p in st.session_state.pets:
+            _owner.add_pet(p)
+        _scheduler = Scheduler(_owner)
+
+        # Apply filter
+        completed_filter = None if filter_status == "All" else (filter_status == "Completed")
+        pet_name_filter  = None if filter_pet == "All pets" else filter_pet
+        tasks = _scheduler.filter_tasks(completed=completed_filter, pet_name=pet_name_filter)
+
+        # Apply sort
+        if sort_by == "Scheduled time":
+            tasks = sorted(tasks, key=lambda t: t.time if t.time else "99:99")
+
+        if not tasks:
+            st.info("No tasks match the current filter.")
+        else:
+            # Attach pet name to each row for display
+            pet_by_task = {id(task): pet.name for pet in st.session_state.pets for task in pet.tasks}
+            st.table([
+                {
+                    "Pet":           pet_by_task.get(id(t), "—"),
+                    "Task":          t.name,
+                    "Time":          t.time or "—",
+                    "Duration (min)": t.duration,
+                    "Priority":      t.priority,
+                    "Frequency":     t.frequency,
+                    "Done":          "Yes" if t.completed else "No",
+                }
+                for t in tasks
+            ])
 
 st.divider()
 

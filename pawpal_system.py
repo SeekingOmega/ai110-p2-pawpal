@@ -8,7 +8,8 @@ class Task:
     name: str
     duration: int       # minutes
     priority: str       # "high", "medium", "low"
-    frequency: str      # "daily", "weekly", "as_needed"
+    frequency: str      # "daily", "weekly", "as needed"
+    time: str = ""      # scheduled start time in "HH:MM" format, e.g. "08:00"
     completed: bool = False
 
     def mark_complete(self):
@@ -78,6 +79,23 @@ class Scheduler:
                 plan.append(task)
                 time_remaining -= task.duration
         return plan
+
+    def sort_tasks_by_time(self) -> list[Task]:
+        """Return all tasks sorted by scheduled time using a lambda key; unscheduled tasks go last."""
+        all_tasks = self.owner.get_all_tasks()
+        return sorted(all_tasks, key=lambda t: t.time if t.time else "99:99")
+
+    def filter_tasks(self, completed: bool | None = None, pet_name: str | None = None) -> list[Task]:
+        """Filter tasks by completion status and/or pet name; omit a parameter to skip that filter."""
+        results = []
+        for pet in self.owner.pets:
+            if pet_name is not None and pet.name != pet_name:
+                continue
+            for task in pet.tasks:
+                if completed is not None and task.completed != completed:
+                    continue
+                results.append(task)
+        return results
 
     def get_summary(self) -> str:
         """Returns a human-readable summary of the generated plan."""
