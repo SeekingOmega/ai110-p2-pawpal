@@ -199,7 +199,13 @@ if st.button("Generate schedule", type="primary"):
         all_tasks    = owner.get_all_tasks()
         not_in_plan  = [t for t in all_tasks if t not in plan]
         already_done = [t for t in not_in_plan if t.completed]
-        no_time      = [t for t in not_in_plan if not t.completed]
+        skipped      = [t for t in not_in_plan if not t.completed]
+
+        # Separate conflict-skipped tasks from time-overflow tasks
+        conflicts      = scheduler.get_conflicts()
+        conflicted_tasks = {id(task) for pairs in conflicts.values() for _, task in pairs[1:]}
+        no_time    = [t for t in skipped if id(t) not in conflicted_tasks]
+        conflicted = [t for t in skipped if id(t) in conflicted_tasks]
 
         def label(t):
             return f"{t.name} ({pet_by_task.get(id(t), '?')})"
@@ -208,6 +214,14 @@ if st.button("Generate schedule", type="primary"):
             st.info(
                 f"{len(already_done)} task(s) already completed: "
                 + ", ".join(label(t) for t in already_done)
+            )
+        for slot, pairs in conflicts.items():
+            winner_pet, winner = pairs[0]
+            losers = ", ".join(f"{t.name} ({p.name})" for p, t in pairs[1:])
+            time_label = slot.replace("@", " on ") if "@" in slot else slot
+            st.warning(
+                f"Time conflict at {time_label}: **{winner.name} ({winner_pet.name})** was scheduled. "
+                f"{losers} {'was' if len(pairs) == 2 else 'were'} omitted."
             )
         if no_time:
             st.warning(

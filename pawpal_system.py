@@ -88,17 +88,30 @@ class Scheduler:
         pairs = [(pet, task) for pet in self.owner.pets for task in pet.get_pending_tasks()]
         return sorted(pairs, key=lambda pt: PRIORITY_ORDER.get(pt[1].priority, 99))
 
+    def get_conflicts(self) -> dict[str, list[tuple["Pet", Task]]]:
+        """Return groups of pending tasks that share the same time slot (conflicts).
+        Only slots with 2+ tasks are returned. Tasks with no time set are ignored."""
+        slots: dict[str, list[tuple["Pet", Task]]] = {}
+        for pet, task in self._get_pending_with_pets():
+            if not task.time:
+                continue
+            slots.setdefault(task.time, []).append((pet, task))
+        return {k: v for k, v in slots.items() if len(v) > 1}
+
     def generate_plan(self) -> list[Task]:
-        """
-        Picks tasks in priority order until the owner's available time is filled.
-        Returns the list of tasks that fit in the day.
-        """
+        """Picks tasks in priority order until the owner's available time is filled.
+        Only one task per time slot is scheduled; lower-priority conflicts are skipped."""
         plan = []
         time_remaining = self.owner.available_time
+        booked_slots: set[str] = set()
         for _, task in self._get_pending_with_pets():
+            if task.time and task.time in booked_slots:
+                continue  # conflict — a higher-priority task already owns this slot
             if task.duration <= time_remaining:
                 plan.append(task)
                 time_remaining -= task.duration
+                if task.time:
+                    booked_slots.add(task.time)
         return plan
 
     def handle_completion(self, pet: "Pet", task: Task):
@@ -127,23 +140,22 @@ class Scheduler:
 
     def get_summary(self) -> str:
         """Returns a human-readable summary of the generated plan."""
-        plan_pairs = []
-        time_remaining = self.owner.available_time
-        for pet, task in self._get_pending_with_pets():
-            if task.duration <= time_remaining:
-                plan_pairs.append((pet, task))
-                time_remaining -= task.duration
+        plan = self.generate_plan()
 
-        if not plan_pairs:
+        if not plan:
             all_tasks = self.owner.get_all_tasks()
             if all_tasks and all(t.completed for t in all_tasks):
                 return "All tasks are already completed. Great job!"
             return "No tasks fit within the available time."
 
+        pet_by_task = {id(task): pet for pet in self.owner.pets for task in pet.tasks}
         lines = [f"{self.owner.name}'s plan for today ({self.owner.available_time} min available):"]
-        for pet, task in plan_pairs:
-            lines.append(f"  [{task.priority.upper()}] {task.name} ({pet.name}) — {task.duration} min ({task.frequency})")
+        for task in plan:
+            pet = pet_by_task.get(id(task))
+            when = " | ".join(filter(None, [task.due_date, task.time]))
+            when_str = f"  @ {when}" if when else ""
+            lines.append(f"  [{task.priority.upper()}] {task.name} ({pet.name if pet else '?'}){when_str} — {task.duration} min ({task.frequency})")
 
-        total = sum(t.duration for _, t in plan_pairs)
+        total = sum(t.duration for t in plan)
         lines.append(f"Total: {total} / {self.owner.available_time} min used")
         return "\n".join(lines)
