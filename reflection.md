@@ -100,12 +100,25 @@ This is reasonable because greedy scheduling is simple to understand and explain
 **a. What you tested**
 
 - What behaviors did you test?
+- `Task.mark_complete()` correctly flips the completion flag
+- `Pet.add_task()` correctly grows the task list
+- `Scheduler.sort_tasks_by_time()` returns tasks in chronological order with unscheduled tasks last
+- `Scheduler.handle_completion()` marks a task done and auto-creates the next occurrence with the correct due date
+- `Scheduler.get_conflicts()` correctly identifies tasks sharing the same time slot
+
 - Why were these tests important?
+These tests cover the core behaviors the rest of the app depends on. If `mark_complete()` doesn't work, the Done checkbox in the UI silently does nothing. If `handle_completion()` calculates the wrong date, recurring tasks pile up on the wrong days. If `get_conflicts()` misses a conflict, the schedule will include overlapping tasks without any warning — which is the exact bug we had during development. Testing these early would have caught that issue before it reached the UI.
 
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
+Moderately confident for the happy path — the five tests cover the most critical methods and all pass. However, confidence drops for edge cases. The tests only verify expected inputs: valid time strings, well-formed dates, and clean priority values. There are no tests for malformed input, empty states, or unusual combinations. The scheduler also has known tradeoffs (greedy scheduling, no overlap detection, single-day budget) that are untested by design — they are limitations, not bugs, but a user could still hit surprising behavior from them.
+
 - What edge cases would you test next if you had more time?
+- **All tasks conflict**: every task is at the same time — verify only one makes it into the plan
+- **Zero available time**: `available_time = 0` — verify the plan is empty and the summary message is correct
+- **Weekly recurrence date rollover**: a weekly task due on a Sunday correctly rolls to the following Sunday, not an invalid date
+- **Completing a `once` task**: verify `next_occurrence()` returns `None` and no new task is added to the pet
 
 ---
 
