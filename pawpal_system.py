@@ -107,6 +107,9 @@ class Scheduler:
                 time_remaining -= task.duration
 
         if not plan_pairs:
+            all_tasks = self.owner.get_all_tasks()
+            if all_tasks and all(t.completed for t in all_tasks):
+                return "All tasks are already completed. Great job!"
             return "No tasks fit within the available time."
 
         lines = [f"{self.owner.name}'s plan for today ({self.owner.available_time} min available):"]

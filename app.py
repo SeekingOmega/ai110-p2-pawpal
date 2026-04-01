@@ -129,20 +129,36 @@ else:
         if not tasks:
             st.info("No tasks match the current filter.")
         else:
-            # Attach pet name to each row for display
             pet_by_task = {id(task): pet.name for pet in st.session_state.pets for task in pet.tasks}
-            st.table([
+            rows = [
                 {
-                    "Pet":           pet_by_task.get(id(t), "—"),
-                    "Task":          t.name,
-                    "Time":          t.time or "—",
+                    "Done":           t.completed,
+                    "Pet":            pet_by_task.get(id(t), "—"),
+                    "Task":           t.name,
+                    "Time":           t.time or "—",
                     "Duration (min)": t.duration,
-                    "Priority":      t.priority,
-                    "Frequency":     t.frequency,
-                    "Done":          "Yes" if t.completed else "No",
+                    "Priority":       t.priority,
+                    "Frequency":      t.frequency,
+                    "_task_ref":      t,
                 }
                 for t in tasks
-            ])
+            ]
+            edited = st.data_editor(
+                [{k: v for k, v in r.items() if k != "_task_ref"} for r in rows],
+                column_config={"Done": st.column_config.CheckboxColumn("Done")},
+                disabled=["Pet", "Task", "Time", "Duration (min)", "Priority", "Frequency"],
+                hide_index=True,
+                use_container_width=True,
+            )
+            # Sync checkbox changes back to the Task objects
+            changed = False
+            for row, original in zip(edited, rows):
+                task = original["_task_ref"]
+                if row["Done"] != task.completed:
+                    task.mark_complete() if row["Done"] else task.reset()
+                    changed = True
+            if changed:
+                st.rerun()
 
 st.divider()
 
@@ -165,10 +181,22 @@ if st.button("Generate schedule", type="primary"):
         st.success("Schedule generated!")
         st.text(scheduler.get_summary())
 
-        all_tasks = owner.get_all_tasks()
-        skipped   = [t for t in all_tasks if t not in plan]
-        if skipped:
+        pet_by_task  = {id(task): pet.name for pet in owner.pets for task in pet.tasks}
+        all_tasks    = owner.get_all_tasks()
+        not_in_plan  = [t for t in all_tasks if t not in plan]
+        already_done = [t for t in not_in_plan if t.completed]
+        no_time      = [t for t in not_in_plan if not t.completed]
+
+        def label(t):
+            return f"{t.name} ({pet_by_task.get(id(t), '?')})"
+
+        if already_done:
+            st.info(
+                f"{len(already_done)} task(s) already completed: "
+                + ", ".join(label(t) for t in already_done)
+            )
+        if no_time:
             st.warning(
-                f"{len(skipped)} task(s) didn't fit in {available_time} min: "
-                + ", ".join(t.name for t in skipped)
+                f"{len(no_time)} task(s) didn't fit in {available_time} min: "
+                + ", ".join(label(t) for t in no_time)
             )
